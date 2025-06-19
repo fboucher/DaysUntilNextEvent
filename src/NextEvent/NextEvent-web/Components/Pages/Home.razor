@@ -1,7 +1,35 @@
 ﻿@page "/"
 
+@using Microsoft.AspNetCore.Components.Authorization
+@using Keycloak.Web
+@attribute [StreamRendering(true)]
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+
 <PageTitle>Home</PageTitle>
 
 <h1>Bienvenue sur votre site de configuration!</h1>
 
 <FluentEmoji Value="@(new Microsoft.FluentUI.AspNetCore.Components.Emojis.Objects.Color.Default.LightBulb())" Width="256px" />
+
+<p>Current Status: @curStatus</p>
+
+@code {
+
+ 	private string curStatus = "no idea";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            curStatus = "Authenticated";
+        }
+		else
+		{
+			curStatus = "Not Authenticated";
+		}
+    }
+}

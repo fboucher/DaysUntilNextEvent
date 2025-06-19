@@ -1,11 +1,33 @@
 using Microsoft.FluentUI.AspNetCore.Components;
 using NextEvent_web.Components;
 using Azure.Storage.Blobs;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using AspireApp.Web;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+
 
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+
+var oidcScheme = OpenIdConnectDefaults.AuthenticationScheme;
+builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
+                .AddKeycloakOpenIdConnect(serviceName: "keycloak", realm: "devrealm", oidcScheme, options =>
+                {
+                    options.ClientId = "next-event-client";
+                    options.ResponseType = OpenIdConnectResponseType.Code;
+                    options.RequireHttpsMetadata = false;
+                    options.TokenValidationParameters.NameClaimType = JwtRegisteredClaimNames.Name;
+                    options.SaveTokens = true;
+                    options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+                })
+                .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme);
+
+builder.Services.AddCascadingAuthenticationState();
+
 
 builder.AddAzureBlobClient("BlobConnection");
 
@@ -36,9 +58,15 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.MapDefaultEndpoints();
+
+app.MapLoginAndLogout();
 
 app.Run();

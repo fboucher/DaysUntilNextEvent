@@ -1,5 +1,6 @@
 ﻿@page "/settings"
 @using Azure.Storage.Blobs
+@using Microsoft.AspNetCore.Authorization
 @using NextEvent_web.Domain
 @using System.Text.Json
 @using System.Text
@@ -8,6 +9,8 @@
 @inject IJSRuntime jsRuntime
 @inject IToastService toastService
 @inject ILogger<Settings> Logger
+
+@attribute [Authorize]
 
 @rendermode InteractiveServer
 

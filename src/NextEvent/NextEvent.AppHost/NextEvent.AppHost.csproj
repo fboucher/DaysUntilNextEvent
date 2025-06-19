@@ -15,6 +15,8 @@
     <PackageReference Include="Aspire.Hosting.Azure.Storage" Version="9.2.1" />
     <PackageReference Include="Aspire.Hosting.AppHost" Version="9.2.1" />
     <PackageReference Include="Aspire.Hosting.Docker" Version="9.2.1-preview.1.25222.1" />
+    <PackageReference Include="Keycloak.AuthServices.Aspire.Hosting" Version="0.1.0" />
+    
   </ItemGroup>
 
   <ItemGroup>

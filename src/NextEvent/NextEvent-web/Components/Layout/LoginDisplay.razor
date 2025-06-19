@@ -1,0 +1,20 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims;
+@using System.Security.Principal;
+@using System.Security.Cryptography;
+@using System.Text;
+@using System.IdentityModel.Tokens.Jwt;
+
+
+<AuthorizeView>
+    <Authorized>
+        <FluentNavLink  Href="#" Icon="@(new Icons.Regular.Size20.Person())"> @context.User.Identity?.Name</FluentNavLink>
+        <form action="authentication/logout" method="post">
+            <AntiforgeryToken />
+            <FluentButton Type="ButtonType.Submit" Style="width: 100%;" IconStart="@(new Icons.Regular.Size20.ArrowExit())" IconColor="Color.Accent">Logout</FluentButton>
+        </form>
+    </Authorized>
+    <NotAuthorized>
+        <FluentNavLink Href="authentication/login" Icon="@(new Icons.Regular.Size20.Guest())" IconColor="Color.Accent">Login</FluentNavLink>
+    </NotAuthorized>
+</AuthorizeView>
