@@ -22,10 +22,12 @@ if (!builder.Environment.IsDevelopment())
 var blobs = (builder.Environment.IsDevelopment()) ? builder.AddConnectionString("BlobConnection") : storage!.AddBlobs("BlobConnection");
 
 
-var keycloak = builder.AddKeycloakContainer("keycloak")
+var kcUsername = builder.AddParameter("keycloak-username");
+var kcPassword = builder.AddParameter("keycloak-password", secret: true);
+var keycloak = builder.AddKeycloak(name: "keycloak", adminUsername: kcUsername, adminPassword: kcPassword)
                         .WithDataVolume();
 
-var realm = keycloak.AddRealm("devrealm");
+var realm = keycloak.WithRealmImport("../realms/devrealm.json", true);
 
 var web = builder.AddProject<Projects.NextEvent_web>("nextevent-web")
                     .WithExternalHttpEndpoints()
@@ -34,6 +36,6 @@ var web = builder.AddProject<Projects.NextEvent_web>("nextevent-web")
                     .WaitFor(keycloak)
                     .WithReference(realm);
 
-builder.AddDockerComposePublisher();
+builder.AddDockerComposeEnvironment("dev");
 
 builder.Build().Run();
