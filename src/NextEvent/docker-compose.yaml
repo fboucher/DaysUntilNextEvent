@@ -1,19 +1,49 @@
 services:
+  keycloak:
+    image: "quay.io/keycloak/keycloak:26.2"
+    command:
+      - "start"
+      - "--import-realm"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: "${KEYCLOAK_USERNAME}"
+      KC_BOOTSTRAP_ADMIN_PASSWORD: "${KEYCLOAK_PASSWORD}"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8000:8080"
+      - "8001:9000"
+    volumes:
+      - type: "volume"
+        target: "/opt/keycloak/data"
+        source: "nextevent.apphost-fe6cd28c80-keycloak-data"
+        read_only: false
+      - type: "bind"
+        target: "/opt/keycloak/data/import/devrealm.json"
+        source: ".\\realms\\devrealm.json"
+        read_only: true
+    networks:
+      - "aspire"
   nextevent-web:
     image: "${NEXTEVENT_WEB_IMAGE}"
-    container_name: "nextevent-web"
     environment:
       OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
       OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
       OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
-      HTTP_PORTS: "8000"
-      ConnectionStrings__BlobConnection: "${BLOBCONNECTION}"
+      HTTP_PORTS: "8002"
+      ConnectionStrings__BlobConnection: "${STORAGE_OUTPUTS_BLOBENDPOINT}"
+      services__keycloak__http__0: "http://keycloak:8080"
+      services__keycloak__management__0: "http://keycloak:9000"
     ports:
-      - "8001:8000"
       - "8003:8002"
+      - "8005:8004"
+    depends_on:
+      keycloak:
+        condition: "service_started"
     networks:
       - "aspire"
 networks:
   aspire:
     driver: "bridge"
+volumes:
+  nextevent.apphost-fe6cd28c80-keycloak-data:
+    driver: "local"
