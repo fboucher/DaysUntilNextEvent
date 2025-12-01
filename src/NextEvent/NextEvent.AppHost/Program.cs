@@ -26,6 +26,6 @@ var web = builder.AddProject<Projects.NextEvent_web>("nextevent-web")
                     .WithExternalHttpEndpoints()
                     .WithReference(blobs);
 
-builder.AddDockerComposePublisher();
+builder.AddDockerComposeEnvironment("container");
 
 builder.Build().Run();
