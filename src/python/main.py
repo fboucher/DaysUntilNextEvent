@@ -20,7 +20,7 @@ import os
 import config
 
 # Version
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 
 # ============================================================================
 # CONSTANTS
@@ -889,8 +889,9 @@ class CountdownApplication:
             self._error_state("WiFi connection failed")
             return False
         
-        # Step 1.5: Check for updates (before loading settings to get update preferences)
+        # Step 2: Check for updates (before loading settings to get update preferences)
         # First fetch settings to see if auto-update is enabled
+        self.led_controller.show_progress(2)
         Logger.info("Fetching settings for update check...")
         temp_settings = self.settings_api.fetch_settings()
         if temp_settings and temp_settings.auto_update:
@@ -904,33 +905,33 @@ class CountdownApplication:
         else:
             Logger.info("Auto-update disabled, skipping update check")
         
-        # Step 2: Get timezone
-        self.led_controller.show_progress(2)
+        # Step 3: Get timezone
+        self.led_controller.show_progress(3)
         self.timezone = TimeAPI.get_timezone()
         if not self.timezone:
             self._error_state("Failed to get timezone")
             return False
         
-        # Step 3: Get timezone offset
-        self.led_controller.show_progress(3)
+        # Step 4: Get timezone offset
+        self.led_controller.show_progress(4)
         self.timezone_offset = TimeAPI.get_timezone_offset(self.timezone)
         if self.timezone_offset is None:
             self._error_state("Failed to get timezone offset")
             return False
         
-        # Step 4: Get local date
-        self.led_controller.show_progress(4)
+        # Step 5: Get local date
+        self.led_controller.show_progress(5)
         current_date = TimeAPI.get_local_date(self.timezone)
         if not current_date:
             self._error_state("Failed to get local date")
             return False
         
-        # Step 5: Sync NTP time
-        self.led_controller.show_progress(5)
+        # Step 6: Sync NTP time
+        self.led_controller.show_progress(6)
         TimeAPI.sync_ntp_time()
         
-        # Step 6: Fetch settings
-        self.led_controller.show_progress(6)
+        # Step 7: Fetch settings
+        self.led_controller.show_progress(7)
         settings = self.settings_api.fetch_settings()
         if not settings:
             self._error_state("Failed to fetch settings")
@@ -938,14 +939,14 @@ class CountdownApplication:
         
         settings.log_settings()
         
-        # Step 7: Initialize countdown state
-        self.led_controller.show_progress(7)
+        # Step 8: Initialize countdown state
+        self.led_controller.show_progress(8)
         Logger.info("Startup: Creating CountdownState...")
         self.countdown_state = CountdownState(current_date, settings)
         Logger.info("Startup: CountdownState created successfully")
         
-        # Step 8: Initialize animation engine
-        self.led_controller.show_progress(8)
+        # Step 9: Initialize animation engine
+        self.led_controller.show_progress(9)
         Logger.info("Startup: Creating AnimationEngine...")
         self.animation_engine = AnimationEngine(self.led_controller, self.countdown_state)
         Logger.info("Startup: AnimationEngine created successfully")
