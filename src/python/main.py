@@ -342,15 +342,19 @@ def show_progress(progress):
     if not (1 <= progress <= 10):
         raise ValueError("Progress must be between 1 and 10")
 
-    # Calculate the number of LEDs to turn on
-    num_leds_on = int((progress / 10) * PIXELS)
-
-    # Turn on the LEDs
+    # Calculate segment size (including 1 LED gap)
+    segment_size = PIXELS // 10
+    
+    # Turn off all LEDs first
     for i in range(PIXELS):
-        if i < num_leds_on:
+        np[i] = (0, 0, 0)
+    
+    # Turn on LEDs for each completed segment, with 1 LED gap between segments
+    for segment in range(progress):
+        segment_start = segment * segment_size
+        segment_end = segment_start + segment_size - 1  # Leave 1 LED as gap
+        for i in range(segment_start, min(segment_end, PIXELS)):
             np[i] = (0, 255, 0)  # Green color
-        else:
-            np[i] = (0, 0, 0)  # Turn off the LED
 
     np.write()
 
