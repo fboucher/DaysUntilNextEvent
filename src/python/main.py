@@ -19,6 +19,8 @@ import math
 import os
 import config
 
+# Version
+VERSION = "1.0.0"
 
 # ============================================================================
 # CONSTANTS
@@ -48,7 +50,13 @@ ANIMATION_SPEED = 0.05
 # Colors
 COLOR_ERROR = (255, 0, 0)
 COLOR_PROGRESS = (0, 255, 0)
+COLOR_UPDATE = (0, 0, 255)
 COLOR_OFF = (0, 0, 0)
+
+# Update Settings
+GITHUB_RAW_URL = "https://raw.githubusercontent.com/fboucher/DaysUntilNextEvent/{branch}/src/python/main.py"
+UPDATE_FILE_NEW = "main_new.py"
+UPDATE_FILE_BACKUP = "main_backup_auto.py"
 
 
 # ============================================================================
@@ -162,6 +170,15 @@ class ColorUtils:
             random.randrange(1, 99) / 100,
             random.randrange(1, 99) / 100
         )
+
+    @staticmethod
+    def lighten(color, factor):
+        """Lighten a color by a factor (1.0 = no change)."""
+        r, g, b = color
+        r = ColorUtils.clamp(r * factor)
+        g = ColorUtils.clamp(g * factor)
+        b = ColorUtils.clamp(b * factor)
+        return (r, g, b)
 
 
 # ============================================================================
@@ -297,6 +314,151 @@ class LEDStripController:
                 self.set_pixel(i, COLOR_PROGRESS)
         
         self.write()
+
+
+class UpdateManager:
+    """Manages automatic code updates from GitHub."""
+    
+    def __init__(self, led_controller, current_version=VERSION):
+        self.led = led_controller
+        self.current_version = current_version
+    
+    def check_and_update(self, branch="main", auto_update=True):
+        """Check for updates and apply if newer version available."""
+        if not auto_update:
+            Logger.info("Auto-update disabled in settings")
+            return False
+        
+        Logger.info(f"Checking for updates... Current version: {self.current_version}")
+        
+        try:
+            # Fetch remote version
+            remote_version = self._get_remote_version(branch)
+            if not remote_version:
+                Logger.error("Could not fetch remote version")
+                return False
+            
+            Logger.info(f"Remote version: {remote_version}")
+            
+            # Compare versions
+            if remote_version <= self.current_version:
+                Logger.info("Already on latest version")
+                return False
+            
+            Logger.info(f"New version available: {remote_version}")
+            
+            # Flash blue LEDs to indicate update starting
+            for _ in range(3):
+                self.led.fill(COLOR_UPDATE)
+                time.sleep(0.3)
+                self.led.clear()
+                time.sleep(0.3)
+            
+            # Download and apply update
+            return self._download_and_apply(branch)
+            
+        except Exception as e:
+            Logger.error(f"Update check failed: {e}")
+            return False
+    
+    def _get_remote_version(self, branch):
+        """Fetch VERSION constant from remote main.py."""
+        url = GITHUB_RAW_URL.format(branch=branch)
+        Logger.info(f"Fetching version from: {url}")
+        
+        try:
+            response = urequests.get(url)
+            if response.status_code == 200:
+                # Read first 1KB to find VERSION
+                content = response.text[:1024]
+                response.close()
+                
+                # Parse VERSION line
+                for line in content.split('\n'):
+                    line = line.strip()
+                    if line.startswith('VERSION = '):
+                        # Extract version string
+                        version = line.split('=')[1].strip().strip('"\'')
+                        return version
+                
+                Logger.error("VERSION not found in remote file")
+                return None
+            else:
+                Logger.error(f"Failed to fetch remote file: {response.status_code}")
+                response.close()
+                return None
+        except Exception as e:
+            Logger.error(f"Error fetching remote version: {e}")
+            return None
+    
+    def _download_and_apply(self, branch):
+        """Download new main.py and apply update safely."""
+        url = GITHUB_RAW_URL.format(branch=branch)
+        
+        try:
+            # Step 1: Download new file
+            Logger.info("Downloading new version...")
+            self.led.fill(COLOR_UPDATE)
+            
+            response = urequests.get(url)
+            if response.status_code != 200:
+                Logger.error(f"Download failed: {response.status_code}")
+                response.close()
+                return False
+            
+            content = response.text
+            response.close()
+            
+            # Step 2: Validate downloaded file
+            if len(content) < 1000:  # Sanity check
+                Logger.error("Downloaded file too small, aborting")
+                return False
+            
+            if 'import network' not in content or 'def main()' not in content:
+                Logger.error("Downloaded file missing key components")
+                return False
+            
+            Logger.info(f"Downloaded {len(content)} bytes")
+            
+            # Step 3: Save as new file
+            Logger.info(f"Saving to {UPDATE_FILE_NEW}...")
+            with open(UPDATE_FILE_NEW, 'w') as f:
+                f.write(content)
+            
+            # Step 4: Backup current main.py
+            Logger.info("Backing up current version...")
+            try:
+                with open('main.py', 'r') as src:
+                    with open(UPDATE_FILE_BACKUP, 'w') as dst:
+                        dst.write(src.read())
+            except Exception as e:
+                Logger.error(f"Backup failed: {e}")
+                # Continue anyway - we have the new file
+            
+            # Step 5: Replace main.py
+            Logger.info("Activating new version...")
+            try:
+                os.remove('main.py')
+            except:
+                pass
+            
+            os.rename(UPDATE_FILE_NEW, 'main.py')
+            
+            Logger.info("Update complete! Rebooting...")
+            self.led.fill(COLOR_UPDATE)
+            time.sleep(2)
+            
+            # Step 6: Reboot
+            reset()
+            
+        except Exception as e:
+            Logger.error(f"Update failed: {e}")
+            # Try to clean up
+            try:
+                os.remove(UPDATE_FILE_NEW)
+            except:
+                pass
+            return False
 
 
 # ============================================================================
@@ -436,7 +598,10 @@ class SettingsAPI:
                         from_pi=data.get('FromPi', False),
                         is_reverse=data.get('IsReverse', False),
                         with_marker=data.get('WithMarker', True),
-                        marker_color=data.get('MarkerRGBColor', '(255,255,255)')
+                        marker_color=data.get('MarkerRGBColor', '(255,255,255)'),
+                        flash_speed=data.get('flash_speed', data.get('FlashSpeed', 2)),
+                        auto_update=data.get('auto_update', data.get('AutoUpdate', True)),
+                        update_branch=data.get('update_branch', data.get('UpdateBranch', 'main'))
                     )
                     
                     Logger.info("Settings fetched successfully")
@@ -462,7 +627,7 @@ class EventSettings:
     
     def __init__(self, important_date, start_from_day, primary_color, secondary_color,
                  use_custom_colors, start_time, end_time, from_pi, is_reverse, 
-                 with_marker, marker_color):
+                 with_marker, marker_color, flash_speed=2, auto_update=True, update_branch='main'):
         self.important_date = important_date
         self.start_from_day = start_from_day
         self.primary_color = primary_color
@@ -474,6 +639,9 @@ class EventSettings:
         self.is_reverse = is_reverse
         self.with_marker = with_marker
         self.marker_color = marker_color
+        self.flash_speed = flash_speed
+        self.auto_update = auto_update
+        self.update_branch = update_branch
     
     def log_settings(self):
         """Log all settings."""
@@ -486,6 +654,9 @@ class EventSettings:
         Logger.info(f"From Pi: {self.from_pi}")
         Logger.info(f"Is Reverse: {self.is_reverse}")
         Logger.info(f"With Marker: {self.with_marker}")
+        Logger.info(f"Flash Speed (s): {self.flash_speed}")
+        Logger.info(f"Auto Update: {self.auto_update}")
+        Logger.info(f"Update Branch: {self.update_branch}")
 
 
 class CountdownState:
@@ -509,6 +680,14 @@ class CountdownState:
         Logger.info(f"Base color: {self.base_color}")
         
         self.animation_phase = 0
+        # Feature flag (hardcoded until added to settings)
+        self.is_flashing = True
+        # Swap colors phase control
+        self.swap_phase = False
+        try:
+            self._last_swap_ms = time.ticks_ms()
+        except Exception:
+            self._last_swap_ms = 0
         Logger.info("CountdownState: Initialization complete")
     
     def _calculate_days_remaining(self):
@@ -523,6 +702,21 @@ class CountdownState:
     def update_animation_phase(self):
         """Update the animation phase for smooth effects."""
         self.animation_phase = (self.animation_phase + ANIMATION_SPEED) % (2 * math.pi)
+    
+    def update_flash_phase(self):
+        """Toggle primary/secondary swap every flash_speed seconds."""
+        try:
+            now = time.ticks_ms()
+            interval_ms = int(self.settings.flash_speed * 1000)
+            if interval_ms <= 0:
+                interval_ms = 2000
+            if time.ticks_diff(now, self._last_swap_ms) >= interval_ms:
+                self.swap_phase = not self.swap_phase
+                self._last_swap_ms = now
+        except Exception:
+            # Fallback using seconds component
+            sec = time.localtime()[5]
+            self.swap_phase = (sec // max(1, int(self.settings.flash_speed))) % 2 == 1
 
 
 # ============================================================================
@@ -550,6 +744,15 @@ class AnimationEngine:
         settings = self.state.settings
         days_remaining = self.state.days_remaining
         countdown_length = self.state.countdown_length
+        phase = self.state.animation_phase
+        # Alternate flashing group: 0 = primary blocks, 1 = secondary blocks
+        flashing_group = 0 if math.sin(phase) >= 0 else 1
+        # Gentle pulse factor for active group (gives a Christmas vibe)
+        # Use an eased pulse for smoother visual effect
+        raw = (math.sin(phase) + 1) / 2  # 0..1
+        pulse = raw * raw * (3 - 2 * raw)  # smoothstep ease-in-out
+        # Increase brightness difference to make flashing more noticeable (up to +35%)
+        lighten_factor = 1.0 + 0.35 * pulse
         
         # Determine which days to show
         if not settings.is_reverse:
@@ -580,10 +783,18 @@ class AnimationEngine:
             # Fill block with color
             for pixel in range(block_min, block_max):
                 if settings.use_custom_colors:
-                    if day_index % 2 == 0:
+                    is_primary_block = (day_index % 2 == 0)
+                    # Apply swap phase: invert mapping when swap_phase is True
+                    if self.state.swap_phase:
+                        is_primary_block = not is_primary_block
+                    if is_primary_block:
                         color = ColorUtils.string_to_rgb(settings.primary_color)
                     else:
                         color = ColorUtils.string_to_rgb(settings.secondary_color)
+                    # Apply flashing alternance
+                    if self.state.is_flashing:
+                        if (flashing_group == 0 and is_primary_block) or (flashing_group == 1 and not is_primary_block):
+                            color = ColorUtils.lighten(color, lighten_factor)
                 else:
                     # Animated color variation
                     variation_1 = ((countdown_length + 1) - day_index) * random.choice([-1, 1])
@@ -593,6 +804,14 @@ class AnimationEngine:
                     g = ColorUtils.clamp(g - variation_1)
                     b = ColorUtils.clamp(b + variation_2)
                     color = (r, g, b)
+                    # Even without custom colors, gently flash blocks by parity
+                    if self.state.is_flashing:
+                        is_primary_block = (day_index % 2 == 0)
+                        # Apply swap phase: invert mapping when swap_phase is True
+                        if self.state.swap_phase:
+                            is_primary_block = not is_primary_block
+                        if (flashing_group == 0 and is_primary_block) or (flashing_group == 1 and not is_primary_block):
+                            color = ColorUtils.lighten(color, lighten_factor)
                 
                 self.led.set_pixel(pixel, color)
             
@@ -670,6 +889,21 @@ class CountdownApplication:
             self._error_state("WiFi connection failed")
             return False
         
+        # Step 1.5: Check for updates (before loading settings to get update preferences)
+        # First fetch settings to see if auto-update is enabled
+        Logger.info("Fetching settings for update check...")
+        temp_settings = self.settings_api.fetch_settings()
+        if temp_settings and temp_settings.auto_update:
+            Logger.info(f"Auto-update enabled, checking for updates from branch: {temp_settings.update_branch}")
+            update_manager = UpdateManager(self.led_controller)
+            if update_manager.check_and_update(temp_settings.update_branch, temp_settings.auto_update):
+                # Device will reboot if update was applied
+                # This line will never execute if update successful
+                return False
+            Logger.info("No update available or update check completed")
+        else:
+            Logger.info("Auto-update disabled, skipping update check")
+        
         # Step 2: Get timezone
         self.led_controller.show_progress(2)
         self.timezone = TimeAPI.get_timezone()
@@ -739,6 +973,7 @@ class CountdownApplication:
         """Single iteration of the main loop."""
         # Update animation phase
         self.countdown_state.update_animation_phase()
+        self.countdown_state.update_flash_phase()
         
         # Read light sensor
         is_dark, consistent_dark, consistent_light = self.light_sensor.update()

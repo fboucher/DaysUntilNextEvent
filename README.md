@@ -55,9 +55,31 @@ You can use [Thonny](https://thonny.org/) to copy the python code to the device.
   - Turn green one by one all the lights of the strip
   - Change a few time the color of the entire light strip, then turn it off
   - Try to connect to the Wi-Fi
+  - Check for code updates from GitHub (if auto-update is enabled)
+    - **Blue flashing LEDs** indicate a new version is being downloaded and installed
+    - The device will automatically reboot after update
   - Retrieve the timezone, current date, and retrieve the settings from the JSON file
   - If the important date is in 24 days or less the countdown will be display using random colors or the colors you specified.
   - If the date is past the light strip will be lit using the bread effect with a color of the day (it's random once a day)
+
+## Auto-Update Feature
+
+The countdown display includes automatic code updates from GitHub:
+
+- **Automatic Updates**: The device checks for new versions on startup
+- **Visual Feedback**: Blue flashing LEDs indicate an update is in progress
+- **Safe Updates**: Creates automatic backups before applying updates
+- **Configuration**: Control updates via the JSON settings:
+  ```json
+  {
+    "AutoUpdate": true,
+    "UpdateBranch": "main"
+  }
+  ```
+- **Version Tracking**: Each release has a version number that's automatically checked
+- **Rollback**: Previous version backed up as `main_backup_auto.py` if needed
+
+For detailed information about the auto-update system, see [UPDATE_GUIDE.md](src/python/UPDATE_GUIDE.md).
 
 
 ## Little extra
