@@ -1,0 +1,16 @@
+{
+    "ImportantDate": "2025-12-25",
+    "StartFromDay": "2025-12-01",
+    "PrimaryRGBColor": "(255, 0, 47)",
+    "SecondaryRGBColor": "(0, 119, 255)",
+    "UseCustomColors": true,
+    "StartTime": "10:00",
+    "EndTime": "18:00",
+    "FromPi": false,
+    "IsReverse": false,
+    "WithMarker": true,
+    "MarkerRGBColor": "(255, 251, 165)",
+    "FlashSpeed": 2,
+    "AutoUpdate": true,
+    "UpdateBranch": "main"
+}

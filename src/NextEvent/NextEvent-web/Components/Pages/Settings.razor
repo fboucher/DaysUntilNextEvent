@@ -81,6 +81,7 @@
                                     Placeholder="(100,0,0)" 
                                     @oninput="e => OnPasteRGB(e, nameof(mySettings.PrimaryRGBColor))" 
                                     Disabled="@(!mySettings.UseCustomColors)" />
+                <div style="@(GetSwatchStyle(mySettings.PrimaryRGBColor, mySettings.UseCustomColors))" aria-label="Primary color preview"></div>
                 <FluentButton   OnClick="@(async () => await OpenColorPickerNewWindow())" 
                                 IconEnd="@(new Icons.Filled.Size24.Color())" 
                                 Disabled="@(!mySettings.UseCustomColors)" />
@@ -91,6 +92,7 @@
                                     Label="Secondary RGB Color" Placeholder="(0,0,100)"  
                                     @oninput="e => OnPasteRGB(e, nameof(mySettings.SecondaryRGBColor))"  
                                     Disabled="@(!mySettings.UseCustomColors)" />
+                <div style="@(GetSwatchStyle(mySettings.SecondaryRGBColor, mySettings.UseCustomColors))" aria-label="Secondary color preview"></div>
                 <FluentButton   OnClick="@(async () => await OpenColorPickerNewWindow())" 
                                 IconEnd="@(new Icons.Filled.Size24.Color())" 
                                 Disabled="@(!mySettings.UseCustomColors)" />
@@ -106,10 +108,24 @@
                                 Placeholder="(255,255,255)" 
                                 @oninput="e => OnPasteRGB(e, nameof(mySettings.MarkerRGBColor))" 
                                 Disabled="@(!mySettings.WithMarker)" />
+                <div style="@(GetSwatchStyle(mySettings.MarkerRGBColor, mySettings.WithMarker))" aria-label="Marker color preview"></div>
                 <FluentButton   OnClick="@(async () => await OpenColorPickerNewWindow())" 
                             IconEnd="@(new Icons.Filled.Size24.Color())" 
                             Disabled="@(!mySettings.WithMarker)" />
             </FluentStack>
+
+            <FluentCheckbox @bind-Value="mySettings.IsFlashing" Label="Enable Flashing Effect"/>
+
+            <FluentStack Orientation="Orientation.Horizontal">
+                <FluentNumberField  @bind-Value="mySettings.FlashSpeed" 
+                                    Label="Flash Speed (seconds)" 
+                                    Min="1" 
+                                    Max="10" 
+                                    Step="1"
+                                    Disabled="@(!mySettings.IsFlashing)" />
+            </FluentStack>
+
+            <FluentCheckbox @bind-Value="mySettings.AutoUpdate" Label="Enable Auto-Update from GitHub"/>
         
             <FluentStack Orientation="Orientation.Horizontal">
                 <FluentTextField @bind-Value="settingsURL" Label="Settings URL" ReadOnly=true />
@@ -213,5 +229,35 @@
     private async Task OpenColorPickerNewWindow()
     {
         await jsRuntime.InvokeVoidAsync("open", "https://rgbcolorpicker.com/", "_blank");
+    }
+
+    private string GetSwatchStyle(string? value, bool enabled)
+    {
+        var color = BuildCssColor(value);
+        var opacity = enabled ? "1" : "0.35";
+
+        return $"width:36px;height:36px;border:1px solid #d1d1d1;border-radius:4px;flex-shrink:0;background:{color};opacity:{opacity};";
+    }
+
+    private static string BuildCssColor(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "linear-gradient(135deg, #f5f5f5 25%, #ffffff 25%, #ffffff 50%, #f5f5f5 50%, #f5f5f5 75%, #ffffff 75%, #ffffff)";
+        }
+
+        var trimmed = value.Trim();
+
+        if (trimmed.StartsWith("rgb", StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmed;
+        }
+
+        if (trimmed.StartsWith("(") || trimmed.StartsWith("["))
+        {
+            return $"rgb{trimmed}";
+        }
+
+        return $"rgb({trimmed})";
     }
 }
