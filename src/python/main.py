@@ -599,6 +599,7 @@ class SettingsAPI:
                         is_reverse=data.get('IsReverse', False),
                         with_marker=data.get('WithMarker', True),
                         marker_color=data.get('MarkerRGBColor', '(255,255,255)'),
+                        is_flashing=data.get('IsFlashing', data.get('IsFlashing', True)),
                         flash_speed=data.get('flash_speed', data.get('FlashSpeed', 2)),
                         auto_update=data.get('auto_update', data.get('AutoUpdate', True)),
                         update_branch=data.get('update_branch', data.get('UpdateBranch', 'main'))
@@ -627,7 +628,7 @@ class EventSettings:
     
     def __init__(self, important_date, start_from_day, primary_color, secondary_color,
                  use_custom_colors, start_time, end_time, from_pi, is_reverse, 
-                 with_marker, marker_color, flash_speed=2, auto_update=True, update_branch='main'):
+                 with_marker, marker_color, is_flashing=True, flash_speed=2, auto_update=True, update_branch='main'):
         self.important_date = important_date
         self.start_from_day = start_from_day
         self.primary_color = primary_color
@@ -639,6 +640,7 @@ class EventSettings:
         self.is_reverse = is_reverse
         self.with_marker = with_marker
         self.marker_color = marker_color
+        self.is_flashing = is_flashing
         self.flash_speed = flash_speed
         self.auto_update = auto_update
         self.update_branch = update_branch
@@ -654,6 +656,7 @@ class EventSettings:
         Logger.info(f"From Pi: {self.from_pi}")
         Logger.info(f"Is Reverse: {self.is_reverse}")
         Logger.info(f"With Marker: {self.with_marker}")
+        Logger.info(f"Is Flashing: {self.is_flashing}")
         Logger.info(f"Flash Speed (s): {self.flash_speed}")
         Logger.info(f"Auto Update: {self.auto_update}")
         Logger.info(f"Update Branch: {self.update_branch}")
@@ -680,8 +683,6 @@ class CountdownState:
         Logger.info(f"Base color: {self.base_color}")
         
         self.animation_phase = 0
-        # Feature flag (hardcoded until added to settings)
-        self.is_flashing = True
         # Swap colors phase control
         self.swap_phase = False
         try:
@@ -792,7 +793,7 @@ class AnimationEngine:
                     else:
                         color = ColorUtils.string_to_rgb(settings.secondary_color)
                     # Apply flashing alternance
-                    if self.state.is_flashing:
+                    if settings.is_flashing:
                         if (flashing_group == 0 and is_primary_block) or (flashing_group == 1 and not is_primary_block):
                             color = ColorUtils.lighten(color, lighten_factor)
                 else:

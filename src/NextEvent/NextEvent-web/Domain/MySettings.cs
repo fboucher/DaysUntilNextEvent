@@ -23,4 +23,10 @@ public class MySettings
     public bool WithMarker { get; set; } = false;
 
     public string MarkerRGBColor { get; set; } = string.Empty;
+
+    public bool IsFlashing { get; set; } = true;
+
+    public int FlashSpeed { get; set; } = 2;
+
+    public bool AutoUpdate { get; set; } = true;
 }
