@@ -1,0 +1,47 @@
+@page "/led-guide"
+
+@rendermode InteractiveServer
+
+<h2>LED Guide</h2>
+
+<p>This device has no screen. When something goes wrong during startup, the LED strip shows an error pattern to help you diagnose the problem.</p>
+
+<h3>Error Pattern Layout</h3>
+
+<p>The strip is divided into 5 equal sections. The first and last sections glow <strong>red</strong>, and the 3 middle sections show the <strong>error color</strong>.</p>
+
+<div style="display:flex; gap:4px; margin: 16px 0; height:40px;">
+    <div style="flex:1; background:rgb(255,0,0); border-radius:4px;"></div>
+    <div style="flex:3; background:repeating-linear-gradient(90deg,#555 0,#555 1px,#888 1px,#888 100%); border-radius:4px; display:flex; align-items:center; justify-content:center; color:white; font-size:12px;">error color</div>
+    <div style="flex:1; background:rgb(255,0,0); border-radius:4px;"></div>
+</div>
+
+<h3>Error Color Reference</h3>
+
+<FluentDataGrid Items="@errors" GridTemplateColumns="60px 1fr 2fr">
+    <PropertyColumn Title="Color" Property="@(e => e.Name)">
+        <ColumnOptions>
+        </ColumnOptions>
+    </PropertyColumn>
+    <TemplateColumn Title="Color">
+        <ChildContent>
+            <div style="width:36px; height:36px; border-radius:4px; border:1px solid #d1d1d1; background:@context.Css;" aria-label="@context.Name color swatch"></div>
+        </ChildContent>
+    </TemplateColumn>
+    <PropertyColumn Title="Error" Property="@(e => e.Error)" />
+    <PropertyColumn Title="Tip" Property="@(e => e.Tip)" />
+</FluentDataGrid>
+
+@code {
+    private record ErrorCode(string Name, string Css, string Error, string Tip);
+
+    private IQueryable<ErrorCode> errors = new List<ErrorCode>
+    {
+        new("Orange",  "rgb(255,165,0)",   "WiFi connection failed",      "Check your SSID and password in config.py"),
+        new("Yellow",  "rgb(255,255,0)",   "Timezone detection failed",   "Check your internet connection is working"),
+        new("Cyan",    "rgb(0,255,255)",   "Timezone offset failed",      "The timeapi.io service may be down, try again later"),
+        new("Purple",  "rgb(128,0,255)",   "Local date fetch failed",     "The timeapi.io service may be down, try again later"),
+        new("White",   "rgb(255,255,255)", "Settings fetch failed",       "Check your SETTINGSURL in config.py is reachable"),
+        new("Red",     "rgb(255,0,0)",     "Unknown / runtime error",     "Check the errors.log file on the device"),
+    }.AsQueryable();
+}

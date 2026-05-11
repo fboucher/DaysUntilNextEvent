@@ -20,7 +20,7 @@ import os
 import config
 
 # Version
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 
 # ============================================================================
 # CONSTANTS
@@ -49,6 +49,11 @@ ANIMATION_SPEED = 0.05
 
 # Colors
 COLOR_ERROR = (255, 0, 0)
+COLOR_ERROR_WIFI = (255, 165, 0)
+COLOR_ERROR_TIMEZONE = (255, 255, 0)
+COLOR_ERROR_TIMEZONE_OFFSET = (0, 255, 255)
+COLOR_ERROR_LOCAL_DATE = (128, 0, 255)
+COLOR_ERROR_SETTINGS = (255, 255, 255)
 COLOR_PROGRESS = (0, 255, 0)
 COLOR_UPDATE = (0, 0, 255)
 COLOR_OFF = (0, 0, 0)
@@ -193,22 +198,33 @@ class WiFiManager:
         self.password = password
         self.wlan = network.WLAN(network.STA_IF)
     
-    def connect(self):
-        """Connect to WiFi - using the simple approach that works."""
+    def connect(self, timeout=30):
+        """Connect to WiFi. Returns False if connection fails or times out."""
         try:
             Logger.info(f"Connecting to WiFi: {self.ssid}")
             self.wlan.active(True)
             self.wlan.connect(self.ssid, self.password)
-            
-            # Wait for connection
-            while not self.wlan.isconnected():
-                Logger.info("Waiting for WiFi connection...")
+
+            for _ in range(timeout):
+                if self.wlan.isconnected():
+                    config_info = self.wlan.ifconfig()
+                    Logger.info(f"Connected to WiFi: {config_info}")
+                    return True
+
+                status = self.wlan.status()
+                if status == network.STAT_WRONG_PASSWORD:
+                    Logger.error("WiFi failed: wrong password")
+                    return False
+                if status == network.STAT_NO_AP_FOUND:
+                    Logger.error("WiFi failed: network not found")
+                    return False
+
+                Logger.info(f"Waiting for WiFi connection... (status={status})")
                 time.sleep(1)
-            
-            config_info = self.wlan.ifconfig()
-            Logger.info(f"Connected to WiFi: {config_info}")
-            return True
-                
+
+            Logger.error(f"WiFi failed: timed out after {timeout}s")
+            return False
+
         except Exception as e:
             Logger.error(f"WiFi connection exception: {e}")
             return False
@@ -887,7 +903,7 @@ class CountdownApplication:
         # Step 1: Connect to WiFi
         self.led_controller.show_progress(1)
         if not self.wifi.connect():
-            self._error_state("WiFi connection failed")
+            self._error_state("WiFi connection failed", COLOR_ERROR_WIFI)
             return False
         
         # Step 2: Check for updates (before loading settings to get update preferences)
@@ -910,21 +926,21 @@ class CountdownApplication:
         self.led_controller.show_progress(3)
         self.timezone = TimeAPI.get_timezone()
         if not self.timezone:
-            self._error_state("Failed to get timezone")
+            self._error_state("Failed to get timezone", COLOR_ERROR_TIMEZONE)
             return False
         
         # Step 4: Get timezone offset
         self.led_controller.show_progress(4)
         self.timezone_offset = TimeAPI.get_timezone_offset(self.timezone)
         if self.timezone_offset is None:
-            self._error_state("Failed to get timezone offset")
+            self._error_state("Failed to get timezone offset", COLOR_ERROR_TIMEZONE_OFFSET)
             return False
         
         # Step 5: Get local date
         self.led_controller.show_progress(5)
         current_date = TimeAPI.get_local_date(self.timezone)
         if not current_date:
-            self._error_state("Failed to get local date")
+            self._error_state("Failed to get local date", COLOR_ERROR_LOCAL_DATE)
             return False
         
         # Step 6: Sync NTP time
@@ -935,7 +951,7 @@ class CountdownApplication:
         self.led_controller.show_progress(7)
         settings = self.settings_api.fetch_settings()
         if not settings:
-            self._error_state("Failed to fetch settings")
+            self._error_state("Failed to fetch settings", COLOR_ERROR_SETTINGS)
             return False
         
         settings.log_settings()
@@ -1035,10 +1051,19 @@ class CountdownApplication:
         
         Logger.info("Settings refreshed successfully")
     
-    def _error_state(self, message):
-        """Display error state."""
+    def _error_state(self, message, color=None):
+        """Display error state. If color is provided, shows bookend pattern: red | color | red."""
         Logger.error(message)
-        self.led_controller.fill(COLOR_ERROR)
+        if color is None:
+            self.led_controller.fill(COLOR_ERROR)
+        else:
+            section = self.led_controller.num_pixels // 5
+            for i in range(self.led_controller.num_pixels):
+                if i < section or i >= 4 * section:
+                    self.led_controller.set_pixel(i, COLOR_ERROR)
+                else:
+                    self.led_controller.set_pixel(i, color)
+            self.led_controller.write()
 
 
 # ============================================================================
