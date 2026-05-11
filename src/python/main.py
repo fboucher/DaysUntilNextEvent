@@ -20,7 +20,7 @@ import os
 import config
 
 # Version
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 
 # ============================================================================
 # CONSTANTS
@@ -500,7 +500,7 @@ class TimeAPI:
     @staticmethod
     def get_timezone_offset(timezone, retries=3):
         """Get UTC offset for a timezone."""
-        url = f"http://worldtimeapi.org/api/timezone/{timezone}"
+        url = f"https://timeapi.io/api/TimeZone/zone?timeZone={timezone}"
         
         for attempt in range(retries):
             try:
@@ -509,8 +509,8 @@ class TimeAPI:
                 
                 if response.status_code == 200:
                     data = response.json()
-                    offset = data['utc_offset']
-                    hours_offset = int(offset[:3])
+                    seconds_offset = data['currentUtcOffset']['seconds']
+                    hours_offset = seconds_offset // 3600
                     response.close()
                     Logger.info(f"Timezone offset: {hours_offset} hours")
                     return hours_offset
